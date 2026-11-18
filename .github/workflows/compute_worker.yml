@@ -1,0 +1,40 @@
+name: Sovereign Compute Worker
+on:
+  workflow_dispatch:
+    inputs:
+      task_script:
+        description: Base64-encoded Python script to execute
+        required: true
+      task_id:
+        description: Task identifier for result tracking
+        required: true
+        default: task-001
+
+jobs:
+  compute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Execute Task
+        env:
+          TASK_SCRIPT: ${{ github.event.inputs.task_script }}
+          TASK_ID: ${{ github.event.inputs.task_id }}
+        run: |
+          echo $TASK_SCRIPT | base64 -d > task.py
+          python task.py 2>&1 | tee output.log
+          echo "Task $TASK_ID completed with exit code $?"
+
+      - name: Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ github.event.inputs.task_id }}
+          path: |
+            output.log
+            results/
+          retention-days: 7
